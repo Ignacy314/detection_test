@@ -181,47 +181,47 @@ fn main() {
         }
     }
 
-    let mut detection_model = models::load_onnx("detection.onnx");
-
-    let mut detections: CircularBuffer<20, u8> = CircularBuffer::from([0; 20]);
-
-    let mut reader = hound::WavReader::open("audio.wav").unwrap();
-
-    let mut samples = Vec::with_capacity(8192);
-
-    for sample in reader.samples::<i32>() {
-        let s = sample.unwrap();
-        samples.push(s);
-        if samples.len() == 8192 {
-            let (_, values) = models::process_samples(samples.iter());
-            let x = Array2::from_shape_vec((1, values.len()), values).unwrap();
-            let mut run =
-                detection_model.run(inputs![TensorRef::from_array_view(x.view()).unwrap()]);
-            let Ok(ref mut outputs) = run else {
-                samples.clear();
-                continue;
-            };
-            let prob = outputs.remove("output_probability").unwrap();
-            let pred = outputs["output_label"]
-                .try_extract_tensor::<i64>()
-                .unwrap()
-                .1;
-            detections.push_back(pred[0] as u8);
-            drop(run);
-            let pred = detections.back().unwrap();
-            let prob: Sequence<DynMapValueType> = prob.into_dyn().downcast().unwrap();
-            let prob = prob.extract_sequence(detection_model.allocator());
-            let prob = prob
-                .iter()
-                .map(|p| p.try_extract_map::<i64, f32>().unwrap())
-                .collect::<Vec<HashMap<i64, f32>>>();
-            let prob = &prob[0].get(&(*pred as i64)).unwrap();
-
-            let drone_predicted = detections.iter().sum::<u8>() > 1;
-            println!(
-                "Drone predicted: {drone_predicted} | Drone detected: {pred} | confidence = {prob:?}"
-            );
-            samples.clear();
-        }
-    }
+    // let mut detection_model = models::load_onnx("detection.onnx");
+    //
+    // let mut detections: CircularBuffer<20, u8> = CircularBuffer::from([0; 20]);
+    //
+    // let mut reader = hound::WavReader::open("audio.wav").unwrap();
+    //
+    // let mut samples = Vec::with_capacity(8192);
+    //
+    // for sample in reader.samples::<i32>() {
+    //     let s = sample.unwrap();
+    //     samples.push(s);
+    //     if samples.len() == 8192 {
+    //         let (_, values) = models::process_samples(samples.iter());
+    //         let x = Array2::from_shape_vec((1, values.len()), values).unwrap();
+    //         let mut run =
+    //             detection_model.run(inputs![TensorRef::from_array_view(x.view()).unwrap()]);
+    //         let Ok(ref mut outputs) = run else {
+    //             samples.clear();
+    //             continue;
+    //         };
+    //         let prob = outputs.remove("output_probability").unwrap();
+    //         let pred = outputs["output_label"]
+    //             .try_extract_tensor::<i64>()
+    //             .unwrap()
+    //             .1;
+    //         detections.push_back(pred[0] as u8);
+    //         drop(run);
+    //         let pred = detections.back().unwrap();
+    //         let prob: Sequence<DynMapValueType> = prob.into_dyn().downcast().unwrap();
+    //         let prob = prob.extract_sequence(detection_model.allocator());
+    //         let prob = prob
+    //             .iter()
+    //             .map(|p| p.try_extract_map::<i64, f32>().unwrap())
+    //             .collect::<Vec<HashMap<i64, f32>>>();
+    //         let prob = &prob[0].get(&(*pred as i64)).unwrap();
+    //
+    //         let drone_predicted = detections.iter().sum::<u8>() > 1;
+    //         println!(
+    //             "Drone predicted: {drone_predicted} | Drone detected: {pred} | confidence = {prob:?}"
+    //         );
+    //         samples.clear();
+    //     }
+    // }
 }
