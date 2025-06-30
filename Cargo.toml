@@ -1,0 +1,14 @@
+[package]
+name = "detection_test"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+hound = "3.5.1"
+ndarray = "0.16"
+ndarray-conv = "0.4.1"
+spectrum-analyzer = "1.6.0"
+ort = { version = "2.0.0-rc.9", features = ["ndarray"] }
+circular-buffer = "1.0.0"
+alsa = "0.9.1"
+clap = { version = "4.5.40", features = ["derive"] }
