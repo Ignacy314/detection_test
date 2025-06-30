@@ -2,6 +2,7 @@ use std::{
     collections::HashMap,
     fs::File,
     io::{BufWriter, Write},
+    sync::atomic::{AtomicBool, Ordering},
     thread,
 };
 
@@ -14,6 +15,7 @@ use ort::{
     inputs,
     value::{DynMapValueType, Sequence, TensorRef},
 };
+use signal_hook::{consts::SIGINT, iterator::Signals};
 
 mod audio;
 mod models;
@@ -58,21 +60,34 @@ struct TestArgs {
 }
 
 fn record_audio(RecordArgs { output_file }: RecordArgs) {
-    let audio_thread = thread::Builder::new()
-        .stack_size(1024 * 1024 * 8)
-        .name("audio".to_owned())
-        .spawn(move || {
-            let audio =
-                CaptureDevice::new("hw:CARD=sndrpigooglevoi,DEV=0", 2, 48000, Format::s32());
-            match audio.read(output_file) {
-                Ok(()) => {}
-                Err(err) => {
-                    println!("Audio error: {err}");
+    let running = &AtomicBool::new(true);
+    thread::scope(|s| {
+        let mut signals = Signals::new([SIGINT]).unwrap();
+        s.spawn(move || {
+            for sig in signals.forever() {
+                if sig == signal_hook::consts::SIGINT {
+                    running.store(false, Ordering::Relaxed);
+                    println!();
+                    break;
                 }
             }
-        })
-        .unwrap();
-    audio_thread.join().unwrap();
+        });
+        thread::Builder::new()
+            .stack_size(1024 * 1024 * 8)
+            .name("audio".to_owned())
+            .spawn_scoped(s, move || {
+                let audio =
+                    CaptureDevice::new("hw:CARD=sndrpigooglevoi,DEV=0", 2, 48000, Format::s32());
+                match audio.read(output_file, running) {
+                    Ok(()) => {}
+                    Err(err) => {
+                        println!("Audio error: {err}");
+                    }
+                }
+            })
+            .unwrap();
+    });
+    println!("clean exit");
 }
 
 fn gen_csv(GenCsvArgs { input_wav, output_csv }: GenCsvArgs) {

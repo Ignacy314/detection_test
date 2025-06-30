@@ -1,4 +1,4 @@
-use std::{fs::File, io::BufWriter, path::Path};
+use std::{fs::File, io::BufWriter, path::Path, sync::atomic::AtomicBool};
 
 use alsa::{
     Direction, Error, ValueOr,
@@ -39,7 +39,7 @@ impl CaptureDevice {
         Ok(pcm)
     }
 
-    pub fn read<P: AsRef<Path>>(&self, output_file: P) -> Result<(), Error> {
+    pub fn read<P: AsRef<Path>>(&self, output_file: P, running: &AtomicBool) -> Result<(), Error> {
         let pcm = self.init_device()?;
         let io = match &self.format {
             Format::S32LE | Format::S32BE => pcm.io_i32()?,
@@ -60,7 +60,7 @@ impl CaptureDevice {
         .unwrap();
 
         println!("start audio read");
-        loop {
+        while running.load(std::sync::atomic::Ordering::Relaxed) {
             match io.readi(&mut buf) {
                 Ok(s) => {
                     let n = s * self.channels as usize;
@@ -77,5 +77,6 @@ impl CaptureDevice {
             }
             // thread::sleep(Duration::from_millis(1).saturating_sub(start.elapsed()));
         }
+        Ok(())
     }
 }
