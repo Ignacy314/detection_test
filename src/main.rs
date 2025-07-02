@@ -115,7 +115,7 @@ fn gen_csv(GenCsvArgs { input_wav, output_csv }: GenCsvArgs) {
 fn test(TestArgs { model_file, input_wav, drone }: TestArgs) {
     let mut detection_model = models::load_onnx(model_file);
 
-    let mut detections: CircularBuffer<20, u8> = CircularBuffer::from([0; 20]);
+    let mut detections: CircularBuffer<10, u8> = CircularBuffer::from([0; 10]);
 
     let mut reader = hound::WavReader::open(input_wav).unwrap();
 
